@@ -1,0 +1,36 @@
+group "org.mentha.tools"
+version "1.0.0-SNAPSHOT"
+
+apply plugin: "java"
+apply plugin: "scala"
+
+sourceCompatibility = 1.8
+
+ext {
+    scalaLibVersion = "2.11"
+    scalaVersion = "${scalaLibVersion}.8"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    zinc "com.typesafe.zinc:zinc:0.3.15"
+    zinc 'org.scala-lang:scala-library:2.10.6'
+
+    compile "org.scala-lang:scala-library:${scalaVersion}"
+
+    compile "org.scala-lang.modules:scala-xml_${scalaLibVersion}:1.0.6"
+    compile "org.scala-lang.modules:scala-parser-combinators_${scalaLibVersion}:1.0.4"
+    compile "org.scala-lang.modules:scala-swing_${scalaLibVersion}:1.0.2"
+
+    compile "javax.validation:validation-api:1.1.0.Final"
+    compile "org.apache.commons:commons-lang3:3.5"
+    compile "commons-io:commons-io:2.5"
+
+    compile "xerces:xercesImpl:2.10.0"
+
+    testCompile "junit:junit:4.12"
+    testCompile "org.scalatest:scalatest_${scalaLibVersion}:3.0.1"
+}
