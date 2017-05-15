@@ -56,7 +56,7 @@ object XSEdgeType {
 
 
 /** */
-case class XSEdge(val dstId: String, val edgeType: XSEdgeType) {
+case class XSEdge(dstId: String, edgeType: XSEdgeType) {
 
 }
 
@@ -141,10 +141,10 @@ object XSNode {
 class XSDProcessor(model: XSModel) {
 
   private def $debug(arguments: AnyRef*) = {
-    //import org.apache.commons.lang3.StringUtils
-    //val stackTrace = Thread.currentThread.getStackTrace
-    //val parent = stackTrace(2)
-    //println(parent.getMethodName + ": " + StringUtils.join(arguments.toArray[Object], ", "))
+    import org.apache.commons.lang3.StringUtils
+    val stackTrace = Thread.currentThread.getStackTrace
+    val parent = stackTrace(2)
+    println(parent.getMethodName + ": " + StringUtils.join(arguments.toArray[Object], ", "))
   }
 
   private val processed = mutable.LinkedHashMap[String, XSNode]()

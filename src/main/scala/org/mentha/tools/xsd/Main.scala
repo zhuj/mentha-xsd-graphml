@@ -31,6 +31,7 @@ object Main {
     // val nodes = processor.nodes
     //   .filterNot { n => "http://www.w3.org/1998/Math/MathML" == n.obj.getNamespace}
 
+    nodes = XSDPostProcessor.clearRestrictAnyType(nodes)
     nodes = XSDPostProcessor.simplifyModelGroups(nodes)
 
     val graphMl = GraphMLRenderer.render(nodes)

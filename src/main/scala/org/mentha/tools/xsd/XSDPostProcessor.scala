@@ -1,12 +1,39 @@
 package org.mentha.tools.xsd
 
-import org.apache.xerces.xs.XSModelGroup
+import org.apache.xerces.xs._
 
 import scala.annotation.tailrec
 import scala.collection.mutable
 
 /** */
 object XSDPostProcessor {
+
+  def clearRestrictAnyType(nodes: Seq[XSNode]): Seq[XSNode] = {
+
+    def isAnyTypeDef(obj: XSObject): Boolean =
+      obj.isInstanceOf[XSComplexTypeDefinition] &&
+        ("http://www.w3.org/2001/XMLSchema" == obj.getNamespace) &&
+        ("anyType" == obj.getName)
+
+
+    val anyTypeNodeIds = nodes
+      .collect { case n if isAnyTypeDef(n.obj) => n.id }
+      .toSet
+
+    nodes
+      .filter { n => n.obj.isInstanceOf[XSComplexTypeDefinition] }
+      .foreach {
+        node => {
+          node.outgoing
+            .filter { e => anyTypeNodeIds.contains(e.dstId) }
+            .filter { e => e.edgeType == XSEdgeType.BaseType(XSConstants.DERIVATION_RESTRICTION) }
+            .foreach { e => node.remove(e) }
+        }
+      }
+
+    nodes
+
+  }
 
   def simplifyModelGroups(nodes: Seq[XSNode]): Seq[XSNode] = {
 
@@ -26,10 +53,12 @@ object XSDPostProcessor {
         .filter { n => n.obj.isInstanceOf[XSModelGroup] }
         .filter { n => n.outgoing.isEmpty }
         .foreach {
-          node => removed += node.id
+          node => {
+            removed += node.id
             nodes
               .flatMap { n => n.outgoing.filter { e => node.id == e.dstId }.map { e => (n, e) } }
               .foreach { case (n, e) => n.remove(e) }
+          }
         }
 
       // filter single-outgoing
