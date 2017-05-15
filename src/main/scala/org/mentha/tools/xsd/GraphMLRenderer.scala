@@ -1,6 +1,11 @@
 package org.mentha.tools.xsd
 
+import org.apache.commons.lang3.StringUtils
+
+import scala.xml._
+import collection.convert.wrapAsScala._
 import org.apache.xerces.xs._
+
 
 /** */
 object GraphMLRenderer {
@@ -35,7 +40,7 @@ object GraphMLRenderer {
       <graph edgedefault="directed" id="G">
         <data key="d0"/>
         {for { n <- nodes } yield { node(n) }}
-        {for { n <- nodes; e <- n.outgoing if nodeIds.contains(e.dst.id) } yield { edge(n, e) }}
+        {for { n <- nodes; e <- n.outgoing if nodeIds.contains(e.dstId) } yield { edge(n, e) }}
       </graph>
     </graphml>
   }
@@ -46,7 +51,7 @@ object GraphMLRenderer {
         {
           node.obj match {
             case o: XSSimpleTypeDefinition => node_simple_type_definition(node, o)
-            case o: XSComplexTypeDefinition => node_complex_type_definition(node, o)
+            case o: XSComplexTypeDefinition => node_complex_type_definition_adv(node, o)
             case o: XSElementDeclaration => node_element_declaration(node, o)
             case o: XSModelGroup => node_model_group(node, o)
             case o: XSWildcard => node_wildcard(node, o)
@@ -61,7 +66,7 @@ object GraphMLRenderer {
       <y:Geometry height="20" width="200" x="0" y="0"/>
       <y:Fill color="#e8eef7" transparent="false"/>
       <y:BorderStyle color="#677993" type="line" width="1.0"/>
-      { node_label(o.getName, 200) }
+      { node_label(o.getName) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
@@ -70,16 +75,65 @@ object GraphMLRenderer {
       <y:Geometry height="20" width="200" x="0" y="0"/>
       <y:Fill color="#b7c9e3" transparent="false"/>
       <y:BorderStyle color="#677993" type="line" width="1.0"/>
-      { node_label(o.getName, 200) }
+      { node_label(o.getName) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
+
+  private def node_complex_type_definition_adv(node: XSNode, o: XSComplexTypeDefinition) = {
+    val attributes = o.getAttributeUses
+      .map { x => x.asInstanceOf[XSAttributeUse] }
+      .map { x => "• " + Option(x.getName).orElse(Option(x.getAttrDeclaration.getName)).getOrElse("?") }
+
+    val height = 25 + 15 * attributes.size + { if (attributes.size > 0) 10 else 0 }
+
+    <y:GenericNode configuration="com.yworks.entityRelationship.big_entity">
+      <y:Geometry height={String.valueOf(height)} width="200" x="0" y="0"/>
+      <y:Fill color="#E8EEF7" transparent="false"/>
+      <y:BorderStyle color="#000000" type="line" width="1.0"/>
+      {
+        node_label(Option(o.getName).getOrElse("(inline)")) %
+          Attribute("", "backgroundColor", "#B7C9E3", Null) %
+          Attribute("", "hasBackgroundColor", "true", Null) %
+          Attribute("", "modelName", "internal", Null) %
+          Attribute("", "modelPosition", "t", Null)
+      }
+      {
+        node_label(
+          StringUtils.join(attributes.toArray[AnyRef], "\n"),
+          <y:LabelModel>
+            <y:ErdAttributesNodeLabelModel/>
+          </y:LabelModel>,
+          <y:ModelParameter>
+            <y:ErdAttributesNodeLabelModelParameter/>
+          </y:ModelParameter>
+        ) %
+          Attribute("", "configuration", "com.yworks.entityRelationship.label.attributes", Null) %
+          Attribute("", "alignment", "left", Null)
+      }
+      <y:StyleProperties>
+      <y:Property class="java.lang.Boolean" name="y.view.ShadowNodePainter.SHADOW_PAINTING" value="true"/>
+    </y:StyleProperties>
+    </y:GenericNode>
+  }
 
   private def node_element_declaration(node: XSNode, o: XSElementDeclaration) =
     <y:ShapeNode>
       <y:Geometry height="16" width="200" x="0" y="0"/>
-      <y:Fill color="#fff0b4" transparent="false"/>
+      {
+        if (o.getAbstract) {
+            <y:Fill color="#fffddf" transparent="false"/>
+        } else {
+            <y:Fill color="#fff0b4" transparent="false"/>
+        }
+      }
       <y:BorderStyle color="#808080" type="line" width="1.0"/>
-      { node_label(o.getName, 200) }
+      {
+        if (o.getAbstract) {
+          node_label(s"<< ${o.getName} >>") % Attribute("", "textColor", "#5f5f5f", Null)
+        } else {
+          node_label(o.getName)
+        }
+      }
     </y:ShapeNode>
 
   private def node_model_group(node: XSNode, o: XSModelGroup) =
@@ -87,7 +141,7 @@ object GraphMLRenderer {
       <y:Geometry height="12" width="12" x="0" y="0"/>
       <y:Fill color="#FFFFFF" transparent="false"/>
       <y:BorderStyle color="#000000" type="line" width="1.0"/>
-      { node_label(getModelGroupTitle(o), 20) }
+      { node_label(getModelGroupTitle(o)) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
@@ -96,7 +150,7 @@ object GraphMLRenderer {
       <y:Geometry height="15" width="100" x="0" y="0"/>
       <y:Fill color="#e1ffe1" transparent="false"/>
       <y:BorderStyle color="#808080" type="line" width="1.0"/>
-      { node_label( "WILDCARD", 100) }
+      { node_label( "WILDCARD") }
       <y:Shape type="hexagon"/>
     </y:ShapeNode>
 
@@ -105,35 +159,45 @@ object GraphMLRenderer {
       <y:Geometry height="15" width="100" x="0" y="0"/>
       <y:Fill color="#FFFFFF" transparent="false"/>
       <y:BorderStyle color="#000000" type="line" width="1.0"/>
-      { node_label(node.obj.getName, 100) }
+      { node_label(node.obj.getName) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-  private def node_label(label: String, width: Int) =
+  private def node_label(label: String, nodes: Node*) =
     <y:NodeLabel autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" textColor="#000000"
                  hasBackgroundColor="false" hasLineColor="false"
                  horizontalTextPosition="center" verticalTextPosition="center" alignment="center"
-                 modelName="custom" visible="true" width={width.toString} height="12" x="0" y="0">{label}</y:NodeLabel>
+                 modelName="custom" visible="true" width="10" height="12" x="0" y="0">{label}{nodes}</y:NodeLabel>
 
 
   private def edge(node: XSNode, edge: XSEdge) =
-    <edge id={node.id + '-' + edge.dst.id} source={node.id} target={edge.dst.id}>
+    <edge id={node.id + '-' + edge.dstId} source={node.id} target={edge.dstId}>
       <data key="d10">
         {
           edge.edgeType match {
-            case XSEdgeType.BaseTypeEdge => edge_parent(edge)
+            case tp: XSEdgeType.BaseType => edge_parent(edge, tp)
             case tp: XSEdgeType.Cardinality => edge_cardinality(edge, tp)
+            case XSEdgeType.ElementSubstitution => edge_substitution(edge)
             case _ => edge_generic(edge)
           }
         }
       </data>
     </edge>
 
-  private def edge_parent(edge: XSEdge) =
+  private def edge_parent(edge: XSEdge, tp: XSEdgeType.BaseType) =
     <y:QuadCurveEdge straightness="0.1">
       <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
       <y:LineStyle color="#993300" type="line" width="2.0"/>
       <y:Arrows source="none" target="white_delta"/>
+      { edge_label(tp.title, "#993300") }
+    </y:QuadCurveEdge>
+
+  private def edge_substitution(edge: XSEdge) =
+    <y:QuadCurveEdge straightness="0.1">
+      <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
+      <y:LineStyle color="#000080" type="line" width="2.0"/>
+      <y:Arrows source="none" target="white_delta"/>
+      { edge_label("substituted-by", "#000080") }
     </y:QuadCurveEdge>
 
   private def edge_cardinality(edge: XSEdge, tp: XSEdgeType.Cardinality) =
@@ -141,7 +205,7 @@ object GraphMLRenderer {
       <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
       <y:LineStyle color="#000000" type="line" width="1.0"/>
       <y:Arrows source="none" target="standard"/>
-      { edge_label(tp.title.get) }
+      { edge_label(tp.title) }
     </y:QuadCurveEdge>
 
   private def edge_generic(edge: XSEdge) =
@@ -151,12 +215,12 @@ object GraphMLRenderer {
       <y:Arrows source="none" target="standard"/>
     </y:QuadCurveEdge>
 
-  private def edge_label(title: String) =
+  private def edge_label(title: String, lineColor: String="#000000") =
     <y:EdgeLabel
     alignment="center"
     backgroundColor="#FFFFFF" distance="0.0" fontFamily="Dialog" fontSize="8" fontStyle="plain" textColor="#000000"
     horizontalTextPosition="center" verticalTextPosition="bottom"
-    iconTextGap="4" lineColor="#000000" modelName="centered" modelPosition="center" preferredPlacement="anywhere" ratio="0.5"
+    iconTextGap="4" lineColor={lineColor} modelName="centered" modelPosition="center" preferredPlacement="anywhere" ratio="0.5"
     visible="true" width="10" height="10" x="0" y="0">{title}</y:EdgeLabel>
 
 

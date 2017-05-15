@@ -2,7 +2,6 @@ package org.mentha.tools.xsd
 
 import javax.validation.constraints.NotNull
 
-import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.builder._
 import org.apache.xerces.xs._
 
@@ -10,41 +9,54 @@ import scala.collection.mutable
 import collection.convert.wrapAsScala._
 
 trait XSEdgeType {
-  def title: Option[String] = None
 }
 
 object XSEdgeType {
 
-  object ElementTypeEdge extends XSEdgeType {}
-  object BaseTypeEdge extends XSEdgeType {}
+  object ElementType extends XSEdgeType {}
+  object ElementSubstitution extends XSEdgeType {}
+
+  case class BaseType(derivationMethod: Short) extends XSEdgeType {
+
+    def title: String = derivationMethod match {
+      case XSConstants.DERIVATION_NONE => "none"
+      case XSConstants.DERIVATION_EXTENSION => "extends"
+      case XSConstants.DERIVATION_RESTRICTION => "restricts"
+      case XSConstants.DERIVATION_SUBSTITUTION => "substitutes"
+      case XSConstants.DERIVATION_UNION => "unions"
+      case XSConstants.DERIVATION_LIST => "lists"
+      case _ => s"unknown:${derivationMethod}"
+    }
+
+  }
 
   case class Cardinality(min: Int, max: Int) extends XSEdgeType {
 
-    override def title: Option[String] = Some(
+    def title: String = {
       if (min == max) String.valueOf(min)
       else {
         min + ".." + {
           if (max == Int.MaxValue) "*" else max
         }
       }
-    )
+    }
 
     def simple: Boolean = (min == max) && (min == 1)
 
   }
-  
+
   object Cardinality {
     def apply(particle: XSParticle): Cardinality = new Cardinality(
       particle.getMinOccurs,
       if (particle.getMaxOccursUnbounded) Int.MaxValue else particle.getMaxOccurs
     )
   }
-  
+
 }
 
 
 /** */
-class XSEdge(val dst: XSNode, val edgeType: XSEdgeType) {
+case class XSEdge(val dstId: String, val edgeType: XSEdgeType) {
 
 }
 
@@ -54,23 +66,29 @@ class XSNode(val obj: XSObject) {
   val id = XSNode.id(obj)
 
   private val outgoingEdges = mutable.Buffer[XSEdge]()
-  def outgoing: Seq[XSEdge] = outgoingEdges
 
+  def outgoing: Seq[XSEdge] = outgoingEdges
 
   def typeName: String = XSNode
     .getTypeName(obj.getType)
     .getOrElse(obj.getClass.getSimpleName)
 
-  def link(target: XSNode, edgeType: XSEdgeType): XSEdge = {
-    val edge = new XSEdge(target, edgeType)
+  def link(targetId: String, edgeType: XSEdgeType): XSEdge = {
+    val edge = new XSEdge(targetId, edgeType)
     outgoingEdges += edge
     edge
   }
 
-  def replace(e: XSEdge, target: XSNode, edgeType: XSEdgeType): Unit = {
+  def remove(e: XSEdge): Unit = {
     val i = outgoingEdges.indexOf(e)
     if (i < 0) { throw new IllegalStateException() }
-    outgoingEdges(i) = new XSEdge(target, edgeType)
+    outgoingEdges.remove(i)
+  }
+
+  def replace(e: XSEdge, targetId: String, edgeType: XSEdgeType): Unit = {
+    val i = outgoingEdges.indexOf(e)
+    if (i < 0) { throw new IllegalStateException() }
+    outgoingEdges(i) = new XSEdge(targetId, edgeType)
   }
 
   override def toString: String = new ToStringBuilder(this, ToStringStyle.SIMPLE_STYLE)
@@ -123,14 +141,16 @@ object XSNode {
 class XSDProcessor(model: XSModel) {
 
   private def $debug(arguments: AnyRef*) = {
-    val stackTrace = Thread.currentThread.getStackTrace
-    val parent = stackTrace(2)
-    println(parent.getMethodName + ": " + StringUtils.join(arguments.toArray[Object], ", "))
+    //import org.apache.commons.lang3.StringUtils
+    //val stackTrace = Thread.currentThread.getStackTrace
+    //val parent = stackTrace(2)
+    //println(parent.getMethodName + ": " + StringUtils.join(arguments.toArray[Object], ", "))
   }
 
   private val processed = mutable.LinkedHashMap[String, XSNode]()
 
-  def nodes: Stream[XSNode] = processed.values.toStream
+  def nodes: Seq[XSNode] = processed.values.toStream
+  def nodeMap: Map[String, XSNode] = processed.toMap
 
   def process(obj: XSObject): Option[XSNode] = Option(obj)
     .flatMap { obj =>
@@ -163,17 +183,19 @@ class XSDProcessor(model: XSModel) {
 
   private def process_element_declaration(node: XSNode, o: XSElementDeclaration): Unit = {
     $debug(node)
-    process(o.getTypeDefinition).foreach { t => node.link(t, XSEdgeType.ElementTypeEdge) }
+    process(o.getTypeDefinition).foreach { t => node.link(t.id, XSEdgeType.ElementType) }
+    process(o.getSubstitutionGroupAffiliation).foreach { t => t.link(node.id, XSEdgeType.ElementSubstitution) } // reverse order
   }
-  
+
   private def process_simple_type_definition(node: XSNode, o: XSSimpleTypeDefinition): Unit = {
     $debug(node)
-    process(o.getBaseType).foreach { t => node.link(t, XSEdgeType.BaseTypeEdge) }
+    process(o.getBaseType).foreach { t => node.link(t.id, XSEdgeType.BaseType(XSConstants.DERIVATION_EXTENSION)) }
   }
 
   private def process_complex_type_definition(node: XSNode, o: XSComplexTypeDefinition): Unit = {
     $debug(node)
-    process(o.getBaseType).foreach { t => node.link(t, XSEdgeType.BaseTypeEdge) }
+    process(o.getBaseType).foreach { t => node.link(t.id, XSEdgeType.BaseType(o.getDerivationMethod)) }
+    process(o.getSimpleType).foreach { t => node.link(t.id, XSEdgeType.BaseType(XSConstants.DERIVATION_EXTENSION)) } // TODO: which derivation?
 
     process_particles(
       node,
@@ -198,7 +220,7 @@ class XSDProcessor(model: XSModel) {
     particles
     .foreach { p =>
       process(p.getTerm).foreach {
-        t => node.link(t, XSEdgeType.Cardinality(p))
+        t => node.link(t.id, XSEdgeType.Cardinality(p))
       }
     }
   }
