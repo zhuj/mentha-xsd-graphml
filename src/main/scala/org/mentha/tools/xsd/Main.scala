@@ -13,7 +13,7 @@ object Main {
   def main(args: Array[String]): Unit = {
 
     val source = args(0)
-    val namespace = args(1)
+    val namespace = if (args.length > 1) args(1) else null
 
     val model = XSDParser.loadModel(source)
     val processor = new XSDProcessor(model)
