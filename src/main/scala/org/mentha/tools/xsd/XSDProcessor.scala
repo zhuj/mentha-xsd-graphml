@@ -15,6 +15,8 @@ object XSEdgeType {
 
   object ElementType extends XSEdgeType {}
   object ElementSubstitution extends XSEdgeType {}
+  object SimpleLink extends XSEdgeType {}
+
 
   case class BaseType(derivationMethod: Short) extends XSEdgeType {
 
@@ -67,7 +69,7 @@ class XSNode(val obj: XSObject) {
 
   private val outgoingEdges = mutable.Buffer[XSEdge]()
 
-  def outgoing: Seq[XSEdge] = outgoingEdges
+  def outgoing: Seq[XSEdge] = outgoingEdges.toSeq
 
   def typeName: String = XSNode
     .getTypeName(obj.getType)
@@ -135,7 +137,19 @@ object XSNode {
     case _ => None
   }
 
+  implicit class XSNodeSeq(nodes: Seq[XSNode]) {
+
+    def incoming(node: XSNode): Seq[(XSNode, XSEdge)] = nodes
+      .flatMap { n => n.outgoing.filter { e => node.id == e.dstId }.map { e => (n, e) } }
+
+    def buildMap: Map[String, XSNode] = nodes
+      .map { n => (n.id -> n) }
+      .toMap[String, XSNode]
+
+  }
+
 }
+
 
 /** */
 class XSDProcessor(model: XSModel) {
@@ -150,7 +164,6 @@ class XSDProcessor(model: XSModel) {
   private val processed = mutable.LinkedHashMap[String, XSNode]()
 
   def nodes: Seq[XSNode] = processed.values.toStream
-  def nodeMap: Map[String, XSNode] = processed.toMap
 
   def process(obj: XSObject): Option[XSNode] = Option(obj)
     .flatMap { obj =>
