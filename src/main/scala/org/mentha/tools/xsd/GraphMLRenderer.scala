@@ -62,19 +62,28 @@ trait GraphMLRenderer {
     case _ => node__generic(node)
   }
 
+  private[xsd] def label(obj: XSObject) = obj match {
+    case o: XSTypeDefinition => if (o.getAnonymous) "(anonymous)" else o.getName
+    case o: XSModelGroup => o.getCompositor match {
+      case XSModelGroup.COMPOSITOR_SEQUENCE => "..."
+      case XSModelGroup.COMPOSITOR_CHOICE => "?"
+      case XSModelGroup.COMPOSITOR_ALL => "*"
+    }
+    case _ => obj.getName
+  }
+
   private[xsd] def node__simple_type_definition(node: XSNode, o: XSSimpleTypeDefinition) =
     <y:ShapeNode>
       <y:Geometry height="20" width="200" x="0" y="0"/>
       <y:Fill color="#e8eef7" transparent="false"/>
       <y:BorderStyle color="#677993" type="line" width="1.0"/>
-      { node_label( if (o.getAnonymous) "(anonymous)" else o.getName ) }
+      { node_label( label = label(o) ) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-
   private[xsd] def node__complex_type_definition_base(
     typeDef: XSComplexTypeDefinition,
-    caption: String,
+    label: String,
     cgColor: String,
     bgColor: String
   ) = {
@@ -89,7 +98,7 @@ trait GraphMLRenderer {
       <y:Fill color={bgColor} transparent="false"/>
       <y:BorderStyle color="#000000" type="line" width="1.0"/>
       {
-      node_label( caption ) %
+      node_label( label = label ) %
         Attribute("", "backgroundColor", {cgColor}, Null) %
         Attribute("", "hasBackgroundColor", "true", Null) %
         Attribute("", "modelName", "internal", Null) %
@@ -97,7 +106,7 @@ trait GraphMLRenderer {
       }
       {
       node_label(
-        StringUtils.join(attributes.toArray[AnyRef], "\n"),
+        label = StringUtils.join(attributes.toArray[AnyRef], "\n"),
         <y:LabelModel>
           <y:ErdAttributesNodeLabelModel/>
         </y:LabelModel>,
@@ -117,7 +126,7 @@ trait GraphMLRenderer {
   private[xsd] def node__complex_type_definition(node: XSNode, o: XSComplexTypeDefinition) = {
     node__complex_type_definition_base(
       typeDef = o,
-      caption = if (o.getAnonymous) "(anonymous)" else Option(o.getName).getOrElse("()"),
+      label = label(o),
       cgColor = "#B7C9E3",
       bgColor = "#E8EEF7"
     )
@@ -132,7 +141,7 @@ trait GraphMLRenderer {
     Option(o.getTypeDefinition) match {
       case Some(x: XSComplexTypeDefinition) if !hasTypeDef => node__complex_type_definition_base(
         typeDef = x,
-        caption = if (o.getAbstract) s"<< ${o.getName} >>" else o.getName,
+        label = if (o.getAbstract) s"<< ${label(o)} >>" else label(o),
         cgColor = if (o.getAbstract) "#fffddf" else "#fff0b4",
         bgColor = "#fffddf"
       )
@@ -156,9 +165,9 @@ trait GraphMLRenderer {
       }
       {
         if (o.getAbstract) {
-          node_label(s"<< ${o.getName} >>") % Attribute("", "textColor", "#5f5f5f", Null)
+          node_label( label = s"<< ${label(o)} >>" ) % Attribute("", "textColor", "#5f5f5f", Null)
         } else {
-          node_label(o.getName)
+          node_label( label = label(o) )
         }
       }
       <y:Shape type="roundrectangle"/>
@@ -169,7 +178,7 @@ trait GraphMLRenderer {
       <y:Geometry height="12" width="12" x="0" y="0"/>
       <y:Fill color="#FFFFFF" transparent="false"/>
       <y:BorderStyle color="#000000" type="line" width="1.0"/>
-      { node_label(getModelGroupTitle(o)) }
+      { node_label( label = label(o) ) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
@@ -178,7 +187,7 @@ trait GraphMLRenderer {
       <y:Geometry height="15" width="100" x="0" y="0"/>
       <y:Fill color="#e1ffe1" transparent="false"/>
       <y:BorderStyle color="#808080" type="line" width="1.0"/>
-      { node_label( "WILDCARD") }
+      { node_label( label = "WILDCARD" ) }
       <y:Shape type="hexagon"/>
     </y:ShapeNode>
 
@@ -187,11 +196,11 @@ trait GraphMLRenderer {
       <y:Geometry height="15" width="100" x="0" y="0"/>
       <y:Fill color="#FFFFFF" transparent="false"/>
       <y:BorderStyle color="#000000" type="line" width="1.0"/>
-      { node_label(node.obj.getName) }
+      { node_label( label = label(node.obj) ) }
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-  private[xsd] def node_label(label: String, nodes: Node*) =
+  private[xsd] def node_label(label: String, nodes: Node*): Elem =
     <y:NodeLabel autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" textColor="#000000"
                  hasBackgroundColor="false" hasLineColor="false"
                  horizontalTextPosition="center" verticalTextPosition="center" alignment="center"
@@ -210,7 +219,8 @@ trait GraphMLRenderer {
       case tp: XSEdgeType.Cardinality => edge__cardinality(edge, tp)
       case XSEdgeType.ElementType => edge__element_type(edge)
       case XSEdgeType.ElementSubstitution => edge__substitution(edge)
-      case _ => edge_generic(edge)
+      case XSEdgeType.Association => edge__association(edge)
+      case _ => edge__generic(edge)
     }
 
   private[xsd] def edge__base_type(edge: XSEdge, tp: XSEdgeType.BaseType) = edge_curve(
@@ -242,10 +252,16 @@ trait GraphMLRenderer {
     <y:Arrows source="none" target="t_shape"/>
   )
 
-  private[xsd] def edge_generic(edge: XSEdge) = edge_curve(
+  private[xsd] def edge__generic(edge: XSEdge) = edge_curve(
     edge,
     <y:LineStyle color="#000000" type="line" width="1.0"/>,
     <y:Arrows source="none" target="standard"/>
+  )
+
+  private[xsd] def edge__association(edge: XSEdge) = edge_curve(
+    edge,
+      <y:LineStyle color="#000000" type="dashed" width="1.0"/>,
+      <y:Arrows source="none" target="none"/>
   )
 
   private[xsd] def edge_curve(code: XSEdge, nodes: Node*): Elem =
@@ -262,14 +278,6 @@ trait GraphMLRenderer {
     horizontalTextPosition="center" verticalTextPosition="bottom"
     iconTextGap="4" lineColor="#000000" modelName="centered" modelPosition="center" preferredPlacement="anywhere" ratio="0.5"
     visible="true" width="10" height="10" x="0" y="0">{title}</y:EdgeLabel>
-
-
-  private[xsd] def getModelGroupTitle(o: XSModelGroup): String =
-    o.getCompositor match {
-      case XSModelGroup.COMPOSITOR_SEQUENCE => "..."
-      case XSModelGroup.COMPOSITOR_CHOICE => "?"
-      case XSModelGroup.COMPOSITOR_ALL => "*"
-    }
 
 }
 

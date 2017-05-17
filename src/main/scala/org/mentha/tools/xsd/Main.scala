@@ -16,7 +16,7 @@ object Main {
     val namespace = if (args.length > 1) args(1) else null
 
     val model = XSDParser.loadModel(source)
-    val processor = new XSDProcessor(model)
+    val processor = new XSDProcessor()
 
     val components = model.getComponentsByNamespace(XSConstants.ELEMENT_DECLARATION, namespace)
     components.values()

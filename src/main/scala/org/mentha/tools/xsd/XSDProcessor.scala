@@ -13,6 +13,7 @@ trait XSEdgeType {
 
 object XSEdgeType {
 
+  object Association extends XSEdgeType {}
   object ElementType extends XSEdgeType {}
   object ElementSubstitution extends XSEdgeType {}
   object SimpleLink extends XSEdgeType {}
@@ -152,7 +153,7 @@ object XSNode {
 
 
 /** */
-class XSDProcessor(model: XSModel) {
+class XSDProcessor() {
 
   private def $debug(arguments: AnyRef*) = {
     import org.apache.commons.lang3.StringUtils
