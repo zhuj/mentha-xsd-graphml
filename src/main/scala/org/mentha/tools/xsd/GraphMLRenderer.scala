@@ -7,9 +7,9 @@ import collection.convert.wrapAsScala._
 import org.apache.xerces.xs._
 
 /** */
-trait GraphMLRenderer {
+abstract class GraphMLRenderer {
 
-  private [xsd] val straightness = "0.1"
+  private[xsd] val straightness = "0.1"
   
   def render(nodes: Seq[XSNode]) = {
     val nodeIds = nodes
@@ -41,7 +41,7 @@ trait GraphMLRenderer {
       <graph edgedefault="directed" id="G">
         <data key="d0"/>
         {for { n <- nodes } yield { node_tag(n) }}
-        {for { n <- nodes; e <- n.outgoing if nodeIds.contains(e.dstId) } yield { edge_tag(n, e) }}
+        {for { n <- nodes; e <- n.outgoing if nodeIds.contains(e.dst.id) } yield { edge_tag(e) }}
       </graph>
     </graphml>
   }
@@ -62,15 +62,17 @@ trait GraphMLRenderer {
     case _ => node__generic(node)
   }
 
-  private[xsd] def label(obj: XSObject) = obj match {
-    case o: XSTypeDefinition => if (o.getAnonymous) "(anonymous)" else o.getName
+  private[xsd] def label(obj: XSObject): String = obj match {
+    case o: XSTypeDefinition => if (o.getAnonymous) "(anonymous)" else name(o)
     case o: XSModelGroup => o.getCompositor match {
       case XSModelGroup.COMPOSITOR_SEQUENCE => "..."
       case XSModelGroup.COMPOSITOR_CHOICE => "?"
       case XSModelGroup.COMPOSITOR_ALL => "*"
     }
-    case _ => obj.getName
+    case _ => name(obj)
   }
+
+  private[xsd] def name(obj: XSObject) = obj.getName
 
   private[xsd] def node__simple_type_definition(node: XSNode, o: XSSimpleTypeDefinition) =
     <y:ShapeNode>
@@ -207,14 +209,14 @@ trait GraphMLRenderer {
                  modelName="custom" visible="true" width="10" height="12" x="0" y="0">{label}{nodes}</y:NodeLabel>
 
 
-  private[xsd] def edge_tag(node: XSNode, edge: XSEdge): Node =
-    <edge id={node.id + '-' + edge.dstId} source={node.id} target={edge.dstId}>
+  private[xsd] def edge_tag(edge: XSEdge): Node =
+    <edge id={edge.src.id + '-' + edge.dst.id} source={edge.src.id} target={edge.dst.id}>
       <data key="d10">
-        { edge_tag_content(node, edge) }
+        { edge_tag_content(edge) }
       </data>
     </edge>
 
-  private[xsd] def edge_tag_content(node: XSNode, edge: XSEdge): Node = edge.edgeType match {
+  private[xsd] def edge_tag_content(edge: XSEdge): Node = edge.edgeType match {
       case tp: XSEdgeType.BaseType => edge__base_type(edge, tp)
       case tp: XSEdgeType.Cardinality => edge__cardinality(edge, tp)
       case XSEdgeType.ElementType => edge__element_type(edge)

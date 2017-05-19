@@ -19,11 +19,10 @@ object Main {
     val processor = new XSDProcessor()
 
     val components = model.getComponentsByNamespace(XSConstants.ELEMENT_DECLARATION, namespace)
-    components.values()
+    components
+      .values
       .map { obj => obj.asInstanceOf[XSElementDeclaration] }
-      .foreach { obj =>
-        processor.process(obj)
-      }
+      .foreach { obj => processor.process(obj) }
 
     var nodes: Seq[XSNode] = processor.nodes
 
@@ -31,8 +30,13 @@ object Main {
     // val nodes = processor.nodes
     //   .filterNot { n => "http://www.w3.org/1998/Math/MathML" == n.obj.getNamespace}
 
-    nodes = XSDPostProcessor.clearRestrictAnyType(nodes)
-    nodes = XSDPostProcessor.simplifyModelGroups(nodes)
+    // and optimize them
+    {
+      nodes = XSDPostProcessor.clearRestrictAnyType(nodes)
+      nodes = XSDPostProcessor.simplifyModelGroups(nodes)
+      nodes = XSDPostProcessor.removeModelGroups(nodes)
+      nodes = XSDPostProcessor.inlineElementTypes(nodes)
+    }
 
     val graphMl = GraphMLRenderer.render(nodes)
 

@@ -1,8 +1,10 @@
 package org.mentha.tools.xsd
 
 import org.apache.xerces.xs._
+import org.mentha.tools.xsd.Utils.collect
 
 import scala.annotation.tailrec
+import scala.util.Try
 
 /** */
 object XSDPostProcessor {
@@ -20,7 +22,7 @@ object XSDPostProcessor {
     else Some(nodes.filterNot { n => removed.contains(n.id) })
   }
 
-  // TODO: comment, usecases
+  // TODO: comment, use-cases
   def clearRestrictAnyType(nodes: Seq[XSNode]): Seq[XSNode] = {
 
     def isAnyTypeDef(obj: XSObject): Boolean =
@@ -37,7 +39,7 @@ object XSDPostProcessor {
       .foreach {
         node => {
           node.outgoing
-            .filter { e => anyTypeNodeIds.contains(e.dstId) }
+            .filter { e => anyTypeNodeIds.contains(e.dst.id) }
             .filter { e => e.edgeType == XSEdgeType.BaseType(XSConstants.DERIVATION_RESTRICTION) }
             .foreach { e => node.remove(e) }
         }
@@ -46,7 +48,7 @@ object XSDPostProcessor {
     nodes
   }
 
-  // TODO: comment, usecases
+  // TODO: comment, use-cases
   def simplifyModelGroups(nodes: Seq[XSNode]): Seq[XSNode] = reduce(nodes) {
     nodes => {
 
@@ -82,7 +84,7 @@ object XSDPostProcessor {
               nodes
                 .incoming(node)
                 .foreach {
-                  case (n, e) => n.replace(e, outgoing.dstId, mix(
+                  case (n, e) => n.replace(e, outgoing.dst, mix(
                     incomingType = e.edgeType.asInstanceOf[XSEdgeType.Cardinality],
                     outgoingType = outgoing.edgeType.asInstanceOf[XSEdgeType.Cardinality]
                   ))
@@ -97,7 +99,7 @@ object XSDPostProcessor {
     }
   }
 
-  // TODO: comment, usecases
+  // TODO: comment, use-cases
   def removeModelGroups(nodes: Seq[XSNode]): Seq[XSNode] = {
 
     nodes
@@ -105,7 +107,7 @@ object XSDPostProcessor {
         node =>
           node.outgoing
             .filter { e => e.edgeType.isInstanceOf[XSEdgeType.Cardinality] }
-            .foreach { e => node.replace(e, e.dstId, XSEdgeType.SimpleLink) }
+            .foreach { e => node.replace(e, e.dst, XSEdgeType.SimpleLink) }
       }
 
     reduce(nodes) {
@@ -120,7 +122,7 @@ object XSDPostProcessor {
                   case (n, i) => {
                     n.remove(i)
                     node.outgoing
-                      .foreach { o => n.link(o.dstId, XSEdgeType.SimpleLink) }
+                      .foreach { o => n.link(o.dst, XSEdgeType.SimpleLink) }
                   }
                 }
 
@@ -134,7 +136,7 @@ object XSDPostProcessor {
     }
   }
 
-  // TODO: comment, usecases
+  // TODO: comment, use-cases
   def inlineElementTypes(nodes: Seq[XSNode], all: Boolean = false): Seq[XSNode] = reduce(nodes) {
     nodes => {
 
@@ -149,7 +151,7 @@ object XSDPostProcessor {
                 case (n, i) => {
                   n.remove(i)
                   node.outgoing
-                    .foreach { o => n.link(o.dstId, o.edgeType) }
+                    .foreach { o => n.link(o.dst, o.edgeType) }
                 }
               }
             node.id
@@ -159,6 +161,37 @@ object XSDPostProcessor {
 
       remove(nodes, removed)
     }
+  }
+
+  type XSPoint = (XSNode, XSNode, List[XSEdge])
+
+  // TODO: comment
+  def achievable(edgeFilter: XSEdge => Boolean)(src: XSNode*): Stream[XSPoint] = {
+    def core(front: Stream[XSPoint], visited: Set[String]): Stream[XSPoint] = {
+      val (fnext, vnext) = collect[XSPoint, String](
+        stream = front,
+        visited = visited,
+        extend = {
+          case ((src, node, path), visited) =>
+            for {
+              edge <- node.outgoing if edgeFilter(edge) && !visited.contains(edge.dst.id)
+            } yield (src, edge.dst, edge :: path)
+        },
+        id = { case (_, node, _) => node.id }
+      )
+
+      if (fnext.isEmpty) Stream.Empty
+      else fnext #::: core(
+        front = fnext,
+        visited = vnext
+      )
+    }
+
+    core(
+      front=src.map { s => (s, s, Nil) }.toStream,
+      visited=Set() // cycles are possible
+    )
+    //.map { case (n, path) => (n, path.reverse) }
   }
 
 }

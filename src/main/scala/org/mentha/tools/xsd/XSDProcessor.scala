@@ -13,11 +13,10 @@ trait XSEdgeType {
 
 object XSEdgeType {
 
-  object Association extends XSEdgeType {}
-  object ElementType extends XSEdgeType {}
-  object ElementSubstitution extends XSEdgeType {}
-  object SimpleLink extends XSEdgeType {}
-
+  case object Association extends XSEdgeType {}
+  case object ElementType extends XSEdgeType {}
+  case object ElementSubstitution extends XSEdgeType {}
+  case object SimpleLink extends XSEdgeType {}
 
   case class BaseType(derivationMethod: Short) extends XSEdgeType {
 
@@ -59,7 +58,7 @@ object XSEdgeType {
 
 
 /** */
-case class XSEdge(dstId: String, edgeType: XSEdgeType) {
+case class XSEdge(src: XSNode, dst: XSNode, edgeType: XSEdgeType) {
 
 }
 
@@ -68,7 +67,7 @@ class XSNode(val obj: XSObject) {
 
   val id = XSNode.id(obj)
 
-  private val outgoingEdges = mutable.Buffer[XSEdge]()
+  private val outgoingEdges = mutable.Set[XSEdge]()
 
   def outgoing: Seq[XSEdge] = outgoingEdges.toSeq
 
@@ -76,22 +75,19 @@ class XSNode(val obj: XSObject) {
     .getTypeName(obj.getType)
     .getOrElse(obj.getClass.getSimpleName)
 
-  def link(targetId: String, edgeType: XSEdgeType): XSEdge = {
-    val edge = new XSEdge(targetId, edgeType)
+  def link(dst: XSNode, edgeType: XSEdgeType): XSEdge = {
+    val edge = new XSEdge(this, dst, edgeType)
     outgoingEdges += edge
     edge
   }
 
   def remove(e: XSEdge): Unit = {
-    val i = outgoingEdges.indexOf(e)
-    if (i < 0) { throw new IllegalStateException() }
-    outgoingEdges.remove(i)
+    if (!outgoingEdges.remove(e)) { throw new IllegalStateException() }
   }
 
-  def replace(e: XSEdge, targetId: String, edgeType: XSEdgeType): Unit = {
-    val i = outgoingEdges.indexOf(e)
-    if (i < 0) { throw new IllegalStateException() }
-    outgoingEdges(i) = new XSEdge(targetId, edgeType)
+  def replace(e: XSEdge, dst: XSNode, edgeType: XSEdgeType): Unit = {
+    remove(e)
+    link(dst, edgeType)
   }
 
   override def toString: String = new ToStringBuilder(this, ToStringStyle.SIMPLE_STYLE)
@@ -141,7 +137,7 @@ object XSNode {
   implicit class XSNodeSeq(nodes: Seq[XSNode]) {
 
     def incoming(node: XSNode): Seq[(XSNode, XSEdge)] = nodes
-      .flatMap { n => n.outgoing.filter { e => node.id == e.dstId }.map { e => (n, e) } }
+      .flatMap { n => n.outgoing.filter { e => node == e.dst }.map { e => (n, e) } }
 
     def buildMap: Map[String, XSNode] = nodes
       .map { n => (n.id -> n) }
@@ -164,7 +160,7 @@ class XSDProcessor() {
 
   private val processed = mutable.LinkedHashMap[String, XSNode]()
 
-  def nodes: Seq[XSNode] = processed.values.toStream
+  def nodes: Stream[XSNode] = processed.values.toStream
 
   def process(obj: XSObject): Option[XSNode] = Option(obj)
     .flatMap { obj =>
@@ -197,19 +193,19 @@ class XSDProcessor() {
 
   private def process_element_declaration(node: XSNode, o: XSElementDeclaration): Unit = {
     $debug(node)
-    process(o.getTypeDefinition).foreach { t => node.link(t.id, XSEdgeType.ElementType) }
-    process(o.getSubstitutionGroupAffiliation).foreach { t => t.link(node.id, XSEdgeType.ElementSubstitution) } // reverse order
+    process(o.getTypeDefinition).foreach { t => node.link(t, XSEdgeType.ElementType) }
+    process(o.getSubstitutionGroupAffiliation).foreach { t => t.link(node, XSEdgeType.ElementSubstitution) } // reverse order
   }
 
   private def process_simple_type_definition(node: XSNode, o: XSSimpleTypeDefinition): Unit = {
     $debug(node)
-    process(o.getBaseType).foreach { t => node.link(t.id, XSEdgeType.BaseType(XSConstants.DERIVATION_EXTENSION)) }
+    process(o.getBaseType).foreach { t => node.link(t, XSEdgeType.BaseType(XSConstants.DERIVATION_EXTENSION)) }
   }
 
   private def process_complex_type_definition(node: XSNode, o: XSComplexTypeDefinition): Unit = {
     $debug(node)
-    process(o.getBaseType).foreach { t => node.link(t.id, XSEdgeType.BaseType(o.getDerivationMethod)) }
-    process(o.getSimpleType).foreach { t => node.link(t.id, XSEdgeType.BaseType(XSConstants.DERIVATION_EXTENSION)) } // TODO: which derivation?
+    process(o.getBaseType).foreach { t => node.link(t, XSEdgeType.BaseType(o.getDerivationMethod)) }
+    process(o.getSimpleType).foreach { t => node.link(t, XSEdgeType.BaseType(XSConstants.DERIVATION_EXTENSION)) } // TODO: which derivation?
 
     process_particles(
       node,
@@ -234,7 +230,7 @@ class XSDProcessor() {
     particles
     .foreach { p =>
       process(p.getTerm).foreach {
-        t => node.link(t.id, XSEdgeType.Cardinality(p))
+        t => node.link(t, XSEdgeType.Cardinality(p))
       }
     }
   }
