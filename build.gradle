@@ -9,6 +9,7 @@ sourceCompatibility = 1.8
 ext {
     scalaLibVersion = "2.11"
     scalaVersion = "${scalaLibVersion}.8"
+    zincScalaVersion = "2.10.6" // zinc is build with scala 2.10
 }
 
 repositories {
@@ -17,7 +18,9 @@ repositories {
 
 dependencies {
     zinc "com.typesafe.zinc:zinc:0.3.15"
-    zinc 'org.scala-lang:scala-library:2.10.6'
+    zinc "org.scala-lang:scala-library:${zincScalaVersion}"
+    zinc "org.scala-lang:scala-reflect:${zincScalaVersion}"
+    zinc "org.scala-lang:scala-compiler:${zincScalaVersion}"
 
     compile "org.scala-lang:scala-library:${scalaVersion}"
 

@@ -10,6 +10,7 @@ import collection.convert.wrapAsScala._
 /** */
 object Main {
 
+  // for example, call it with agrs(0) = 'docs/sample.xsd'
   def main(args: Array[String]): Unit = {
 
     val source = args(0)

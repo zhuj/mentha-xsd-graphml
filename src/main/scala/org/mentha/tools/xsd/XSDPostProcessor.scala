@@ -1,7 +1,7 @@
 package org.mentha.tools.xsd
 
 import org.apache.xerces.xs._
-import org.mentha.tools.xsd.Utils.collect
+import org.mentha.tools.xsd.Utils.flatExtend
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -168,7 +168,7 @@ object XSDPostProcessor {
   // TODO: comment
   def achievable(edgeFilter: XSEdge => Boolean)(src: XSNode*): Stream[XSPoint] = {
     def core(front: Stream[XSPoint], visited: Set[String]): Stream[XSPoint] = {
-      val (fnext, vnext) = collect[XSPoint, String](
+      val (fnext, vnext) = flatExtend[XSPoint, String](
         stream = front,
         visited = visited,
         extend = {

@@ -5,8 +5,9 @@ import scala.annotation.tailrec
 /**  */
 object Utils {
 
-  // TODO: optimize me: do not (re)invent the wheel
-  def collect[E, ID](stream: Stream[E], visited: Set[ID], extend: (E, Set[ID]) => Seq[E], id: E => ID) = {
+  // TODO: comment
+  // TODO: optimize me: do not (re)invent the wheel, use for/foldLeft instead
+  def flatExtend[E, ID](stream: Stream[E], visited: Set[ID], extend: (E, Set[ID]) => Seq[E], id: E => ID) = {
     @tailrec def core(stream: Stream[E], visited: Set[ID], result: Stream[E]): (Stream[E], Set[ID]) = stream match {
       case Stream.Empty => (result, visited)
       case el #:: tail => {
@@ -25,8 +26,9 @@ object Utils {
     )
   }
 
-  // TODO: optimize me: do not (re)invent the wheel
-  def filter[E, ID](stream: Stream[E], extend: (E, Set[ID]) => Seq[E], id: E => ID) = collect[E, ID](
+  // TODO: comment
+  // TODO: optimize me: do not (re)invent the wheel, use for/foldLeft instead
+  def filter[E, ID](stream: Stream[E], extend: (E, Set[ID]) => Seq[E], id: E => ID) = flatExtend[E, ID](
     stream = stream,
     visited = Set[ID](),
     extend = extend,

@@ -4,19 +4,21 @@ import java.io.File
 import java.nio.charset.Charset
 
 import org.apache.commons.io.FileUtils
+import org.apache.commons.lang3.StringUtils
 import org.apache.xerces.xs._
 
 import scala.collection.convert.wrapAsScala._
 import scala.collection.mutable
 
-/** */
-abstract class XSDCollation {
+case class XSDSource(
+  source_uri: String,
+  namespaces: Seq[String]
+)
 
-  val a_source_uri: String
-  val a_namespace: String
-
-  val b_source_uri: String
-  val b_namespace: String
+/**
+  * TODO: comment
+  */
+abstract class XSDCollation(a: XSDSource, b: XSDSource) {
 
   /**
     *
@@ -38,25 +40,26 @@ abstract class XSDCollation {
     */
   def loadNodes: Seq[XSNode] = {
     val processor = new XSDProcessor()
-    load_model(a_source_uri, a_namespace)(processor)
-    load_model(b_source_uri, b_namespace)(processor)
+    load_model(a)(processor)
+    load_model(b)(processor)
     processor.nodes
   }
 
   /**
     *
-    * @param sourceUri
-    * @param namespace
+    * @param src
     * @param processor
     */
-  private def load_model(sourceUri: String, namespace: String)(processor: XSDProcessor): Unit = {
-    val model = XSDParser.loadModel(sourceUri)
-    val components = model.getComponentsByNamespace(XSConstants.ELEMENT_DECLARATION, namespace)
-    components.values()
-      .map { obj => obj.asInstanceOf[XSElementDeclaration] }
-      .foreach { obj =>
-        processor.process(obj)
-      }
+  private def load_model(src: XSDSource)(processor: XSDProcessor): Unit = {
+    val model = XSDParser.loadModel(src.source_uri)
+    for { namespace <- src.namespaces } {
+      val components = model.getComponentsByNamespace(XSConstants.ELEMENT_DECLARATION, namespace)
+      components.values()
+        .map { obj => obj.asInstanceOf[XSElementDeclaration] }
+        .foreach { obj =>
+          processor.process(obj)
+        }
+    }
   }
 
   /**
@@ -72,7 +75,7 @@ abstract class XSDCollation {
     if (true) {
       val graphMl = GraphMLRenderer.render(nodes)
       FileUtils.write(
-        new File(s"${a_source_uri}.collate.graphml"),
+        new File(s"${a.source_uri}.collate.graphml"),
         graphMl.toString,
         Charset.forName("UTF-8")
       )
@@ -85,8 +88,9 @@ abstract class XSDCollation {
     *
     */
   lazy val nodeNameMap: Map[String, XSNode] = nodes
-    .filter { node => node.obj.isInstanceOf[XSElementDeclaration] }
+    // .filter { node => node.obj.isInstanceOf[XSElementDeclaration] }
     .groupBy { node => fullName(node) }
+    .filter { case (k, _) => null != StringUtils.trimToNull(k) }
     .mapValues {
       case v if v.size == 1 => v.iterator.next()
       case v => throw new IllegalStateException("Duplicate fullName for: " + v)
@@ -198,7 +202,7 @@ abstract class XSDCollation {
 
           val graphMl = renderer.render(allNodes)
           FileUtils.write(
-            new File(s"${a_source_uri}.collate/${unique_name}.graphml"),
+            new File(s"${a.source_uri}.collate/${unique_name}.graphml"),
             graphMl.toString,
             Charset.forName("UTF-8")
           )

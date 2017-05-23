@@ -6,11 +6,14 @@ import scala.xml._
 import collection.convert.wrapAsScala._
 import org.apache.xerces.xs._
 
-/** */
+/**
+  * TODO: comment
+  */
 abstract class GraphMLRenderer {
 
-  private[xsd] val straightness = "0.1"
-  
+  val straightness = "0.1"
+
+  // TODO: comment
   def render(nodes: Seq[XSNode]) = {
     val nodeIds = nodes
       .map { n => n.id }
@@ -46,14 +49,16 @@ abstract class GraphMLRenderer {
     </graphml>
   }
 
-  private[xsd] def node_tag(node: XSNode): Node =
+  // TODO: comment
+  def node_tag(node: XSNode): Node =
     <node id={node.id}>
       <data key="d6">
         { node_tag_content(node) }
       </data>
     </node>
 
-  private[xsd] def node_tag_content(node: XSNode): Node = node.obj match {
+  // TODO: comment
+  def node_tag_content(node: XSNode): Node = node.obj match {
     case o: XSSimpleTypeDefinition => node__simple_type_definition(node, o)
     case o: XSComplexTypeDefinition => node__complex_type_definition(node, o)
     case o: XSElementDeclaration => node__element_declaration(node, o)
@@ -62,7 +67,8 @@ abstract class GraphMLRenderer {
     case _ => node__generic(node)
   }
 
-  private[xsd] def label(obj: XSObject): String = obj match {
+  // TODO: comment
+  def label(obj: XSObject): String = obj match {
     case o: XSTypeDefinition => if (o.getAnonymous) "(anonymous)" else name(o)
     case o: XSModelGroup => o.getCompositor match {
       case XSModelGroup.COMPOSITOR_SEQUENCE => "..."
@@ -72,9 +78,11 @@ abstract class GraphMLRenderer {
     case _ => name(obj)
   }
 
-  private[xsd] def name(obj: XSObject) = obj.getName
+  // TODO: comment
+  def name(obj: XSObject) = obj.getName
 
-  private[xsd] def node__simple_type_definition(node: XSNode, o: XSSimpleTypeDefinition) =
+  // TODO: comment
+  def node__simple_type_definition(node: XSNode, o: XSSimpleTypeDefinition) =
     <y:ShapeNode>
       <y:Geometry height="20" width="200" x="0" y="0"/>
       <y:Fill color="#e8eef7" transparent="false"/>
@@ -83,7 +91,8 @@ abstract class GraphMLRenderer {
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-  private[xsd] def node__complex_type_definition_base(
+  // TODO: comment
+  def node__complex_type_definition_base(
     typeDef: XSComplexTypeDefinition,
     label: String,
     cgColor: String,
@@ -125,7 +134,8 @@ abstract class GraphMLRenderer {
     </y:GenericNode>
   }
 
-  private[xsd] def node__complex_type_definition(node: XSNode, o: XSComplexTypeDefinition) = {
+  // TODO: comment
+  def node__complex_type_definition(node: XSNode, o: XSComplexTypeDefinition) = {
     node__complex_type_definition_base(
       typeDef = o,
       label = label(o),
@@ -134,7 +144,8 @@ abstract class GraphMLRenderer {
     )
   }
 
-  private[xsd] def node__element_declaration(node: XSNode, o: XSElementDeclaration) = {
+  // TODO: comment
+  def node__element_declaration(node: XSNode, o: XSElementDeclaration) = {
 
     lazy val hasTypeDef: Boolean = node
       .outgoing
@@ -153,7 +164,8 @@ abstract class GraphMLRenderer {
     }
   }
 
-  private[xsd] def node__element_declaration_simple(node: XSNode, o: XSElementDeclaration) =
+  // TODO: comment
+  def node__element_declaration_simple(node: XSNode, o: XSElementDeclaration) =
     <y:ShapeNode>
       <y:Geometry height="25" width="200" x="0" y="0"/>
       {
@@ -175,7 +187,8 @@ abstract class GraphMLRenderer {
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-  private[xsd] def node__model_group(node: XSNode, o: XSModelGroup) =
+  // TODO: comment
+  def node__model_group(node: XSNode, o: XSModelGroup) =
     <y:ShapeNode>
       <y:Geometry height="12" width="12" x="0" y="0"/>
       <y:Fill color="#FFFFFF" transparent="false"/>
@@ -184,7 +197,8 @@ abstract class GraphMLRenderer {
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-  private[xsd] def node__wildcard(node: XSNode, o: XSWildcard) =
+  // TODO: comment
+  def node__wildcard(node: XSNode, o: XSWildcard) =
     <y:ShapeNode>
       <y:Geometry height="15" width="100" x="0" y="0"/>
       <y:Fill color="#e1ffe1" transparent="false"/>
@@ -193,7 +207,8 @@ abstract class GraphMLRenderer {
       <y:Shape type="hexagon"/>
     </y:ShapeNode>
 
-  private[xsd] def node__generic(node: XSNode) =
+  // TODO: comment
+  def node__generic(node: XSNode) =
     <y:ShapeNode>
       <y:Geometry height="15" width="100" x="0" y="0"/>
       <y:Fill color="#FFFFFF" transparent="false"/>
@@ -202,21 +217,23 @@ abstract class GraphMLRenderer {
       <y:Shape type="roundrectangle"/>
     </y:ShapeNode>
 
-  private[xsd] def node_label(label: String, nodes: Node*): Elem =
+  // TODO: comment
+  def node_label(label: String, nodes: Node*): Elem =
     <y:NodeLabel autoSizePolicy="content" fontFamily="Dialog" fontSize="12" fontStyle="plain" textColor="#000000"
                  hasBackgroundColor="false" hasLineColor="false"
                  horizontalTextPosition="center" verticalTextPosition="center" alignment="center"
                  modelName="custom" visible="true" width="10" height="12" x="0" y="0">{label}{nodes}</y:NodeLabel>
 
-
-  private[xsd] def edge_tag(edge: XSEdge): Node =
+  // TODO: comment
+  def edge_tag(edge: XSEdge): Node =
     <edge id={edge.src.id + '-' + edge.dst.id} source={edge.src.id} target={edge.dst.id}>
       <data key="d10">
         { edge_tag_content(edge) }
       </data>
     </edge>
 
-  private[xsd] def edge_tag_content(edge: XSEdge): Node = edge.edgeType match {
+  // TODO: comment
+  def edge_tag_content(edge: XSEdge): Node = edge.edgeType match {
       case tp: XSEdgeType.BaseType => edge__base_type(edge, tp)
       case tp: XSEdgeType.Cardinality => edge__cardinality(edge, tp)
       case XSEdgeType.ElementType => edge__element_type(edge)
@@ -225,7 +242,8 @@ abstract class GraphMLRenderer {
       case _ => edge__generic(edge)
     }
 
-  private[xsd] def edge__base_type(edge: XSEdge, tp: XSEdgeType.BaseType) = edge_curve(
+  // TODO: comment
+  def edge__base_type(edge: XSEdge, tp: XSEdgeType.BaseType) = edge_curve(
     edge,
     <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>,
     <y:LineStyle color="#993300" type="line" width="2.0"/>,
@@ -233,14 +251,17 @@ abstract class GraphMLRenderer {
     edge_label(tp.title) % Attribute("", "lineColor", "#993300", Null)
   )
 
-  private[xsd] def edge__substitution(edge: XSEdge) = edge_curve(
+  // TODO: comment
+  def edge__substitution(edge: XSEdge) = edge_curve(
     edge,
     <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>,
     <y:LineStyle color="#000080" type="line" width="2.0"/>,
     <y:Arrows source="none" target="white_delta"/>,
     edge_label("substituted-by") % Attribute("", "lineColor", "#000080", Null)
   )
-  private[xsd] def edge__cardinality(edge: XSEdge, tp: XSEdgeType.Cardinality) = edge_curve(
+
+  // TODO: comment
+  def edge__cardinality(edge: XSEdge, tp: XSEdgeType.Cardinality) = edge_curve(
     edge,
     <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>,
     <y:LineStyle color="#000000" type="line" width="1.0"/>,
@@ -248,32 +269,36 @@ abstract class GraphMLRenderer {
     edge_label(tp.title)
   )
 
-  private[xsd] def edge__element_type(edge: XSEdge) = edge_curve(
+  // TODO: comment
+  def edge__element_type(edge: XSEdge) = edge_curve(
     edge,
     <y:LineStyle color="#000000" type="line" width="1.0"/>,
     <y:Arrows source="none" target="t_shape"/>
   )
 
-  private[xsd] def edge__generic(edge: XSEdge) = edge_curve(
+  // TODO: comment
+  def edge__generic(edge: XSEdge) = edge_curve(
     edge,
     <y:LineStyle color="#000000" type="line" width="1.0"/>,
     <y:Arrows source="none" target="standard"/>
   )
 
-  private[xsd] def edge__association(edge: XSEdge) = edge_curve(
+  // TODO: comment
+  def edge__association(edge: XSEdge) = edge_curve(
     edge,
       <y:LineStyle color="#000000" type="dashed" width="1.0"/>,
       <y:Arrows source="none" target="none"/>
   )
 
-  private[xsd] def edge_curve(code: XSEdge, nodes: Node*): Elem =
+  // TODO: comment
+  def edge_curve(code: XSEdge, nodes: Node*): Elem =
     <y:QuadCurveEdge straightness={straightness}>
       <y:Path sx="0.0" sy="0.0" tx="0.0" ty="0.0"/>
       { nodes }
     </y:QuadCurveEdge>
 
-
-  private[xsd] def edge_label(title: String): Elem =
+  // TODO: comment
+  def edge_label(title: String): Elem =
     <y:EdgeLabel
     alignment="center"
     backgroundColor="#FFFFFF" distance="0.0" fontFamily="Dialog" fontSize="8" fontStyle="plain" textColor="#000000"
@@ -283,6 +308,9 @@ abstract class GraphMLRenderer {
 
 }
 
+/**
+  * Default implementation for `GraphMLRenderer`
+  */
 object GraphMLRenderer extends GraphMLRenderer {
 
 }
