@@ -1,16 +1,21 @@
 group "org.mentha.tools"
 version "1.0.0-SNAPSHOT"
 
+apply plugin: 'distribution'
+apply plugin: "application"
 apply plugin: "java"
 apply plugin: "scala"
 
+compileJava.options.encoding = 'UTF-8'
 sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 ext {
-    scalaLibVersion = "2.11"
+    scalaLibVersion = "2.12"
     scalaVersion = "${scalaLibVersion}.8"
-    zincScalaVersion = "2.10.6" // zinc is build with scala 2.10
+    zincScalaVersion = "2.10.7" // zinc is build with scala 2.10
 }
+
 
 repositories {
     mavenCentral()
@@ -24,16 +29,25 @@ dependencies {
 
     compile "org.scala-lang:scala-library:${scalaVersion}"
 
-    compile "org.scala-lang.modules:scala-xml_${scalaLibVersion}:1.0.6"
-    compile "org.scala-lang.modules:scala-parser-combinators_${scalaLibVersion}:1.0.4"
-    compile "org.scala-lang.modules:scala-swing_${scalaLibVersion}:1.0.2"
+    compile "org.scala-lang.modules:scala-xml_${scalaLibVersion}:1.1.1"
+    compile "org.scala-lang.modules:scala-parser-combinators_${scalaLibVersion}:1.1.1"
+    compile "org.scala-lang.modules:scala-swing_${scalaLibVersion}:2.1.0"
 
+
+    compile "javax.annotation:javax.annotation-api:1.3.2"
     compile "javax.validation:validation-api:1.1.0.Final"
-    compile "org.apache.commons:commons-lang3:3.5"
-    compile "commons-io:commons-io:2.5"
+    compile "org.apache.commons:commons-lang3:3.8.1"
+    compile "commons-io:commons-io:2.6"
 
     compile "xerces:xercesImpl:2.10.0"
 
     testCompile "junit:junit:4.12"
     testCompile "org.scalatest:scalatest_${scalaLibVersion}:3.0.1"
+}
+
+mainClassName = "org.mentha.tools.xsd.Main"
+jar {
+    manifest.mainAttributes(
+            'Main-Class': mainClassName
+    )
 }
